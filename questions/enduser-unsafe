@@ -1,0 +1,5 @@
+This seems like a pretty common-sense thing to do. It cordons the unsafe code to
+under the module API. That way, we can audit that code closely and not worry
+about potential blowups coming from code elsewhere. Also, it is much more likely
+that the module creator understands the unsafe properties of the code and edge
+cases, so it is more likely that they will get it right.
