@@ -1,0 +1,12 @@
+Allowing the user to provide the layout gives much more flexiblity to specify
+exactly how the allocated memory is layed out. For instance, it could be that
+the user wants a two-byte alignment instead of 8 or 16. This would not be
+possible with libc malloc.
+
+Speculatively, it also might allow the allocator to simplify it's code, and in
+some cases may be safer. This is because (I think) malloc stores information on
+each block right next to the data, in the midst of the heap. Memory write
+overflows due to lack of bounds checking can corrupt the heap and be bad news
+for all users of the allocator. Obviously, this is restricted to within an
+address space.
+
