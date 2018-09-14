@@ -1,0 +1,14 @@
+If anything, my implementation is probably a bit too agressive at defragmenting.
+It runs a pass of the entire list looking for potential joins on every dealloc.
+I should probably reduce this to running every n runs, but it's hard to find a
+non-arbitrary number to fulfill this purpose. It all depends on the allocation
+patterns coming from the user. One possible approach would be to gather
+statistics on distribution of free block sizes. When this distribution becomes
+skewed towards small blocks, it's time to defragment.
+
+The main concern is really internal fragmentation. External fragmentation really
+comes from the alignments requested by the user. Internal fragmentation is
+worst-case slightly more than half of all allocated memory (the user requests
+2**k + 1 for 4 <= k <= 64 in theory). The best way to handle this would be to
+see if we can fit any powers of two sized blocks in the remaining space, and add
+that to the free list.
