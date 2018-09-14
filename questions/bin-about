@@ -1,0 +1,29 @@
+My allocator went through several design iterations, but ended up looking
+exactly like libc malloc, to my surprise. There is one difference. The free list
+is not cyclical, so searches through the list start at the beginning every time.
+
+Size classes are powers of two, but on a 64-bit system must be at least 16
+bytes. This is in order to store both pointer to the next element in the free
+list and a size in each free block.
+
+The main consideration in designing an allocator is how to handle alignment. The
+key realization is that by making block size == block alignment, we can just
+search for a block size that is greater than or equal to the requested
+algignment and greater than or equal to the requested layout size. Since
+alignment on a greater power of two implies alignment on a lesser power of two,
+this makes the alignment problem quite easy to handle.
+
+The next problem to consider is fragmentation. This is also easy to handle when
+block size is equal to it's greatest alignment. Then, we can defragment by
+searching for any pair of neighbors where blocks are adjacent, same sized, and
+the first block is aligned on the sum of their sizes. In that case they can be
+joined.
+
+In this design, fragmentation is really a factor of what the user requests in
+terms of alignment. If the alignment is large but the size is small, we
+compensate by subdividing the rest of the chosen block on the largest
+size/alignment possible. This way the memory really isn't wasted, but may not be
+useful depending on the aligment requirements of further allocations. If the
+user takes small blocks with large alignments, it may come to a point where we
+cannot allocate any further blocks for them just because those alignment slots
+are gone, despite the fact that most of the memory is free.
