@@ -1,0 +1,6 @@
+We would have to manage a whole seperate region of memory for linked list
+headers. This would end up being less efficient, since we are able to store the
+linked list information in areas that are not being used, so there's very little
+overhead. The main cost is that we have to allocate at least 16-bytes, instead
+of being able to only allocate 2 bytes, for instance. In practice heap
+allocation of 2-bytes wouldn't make a lot of sense.
