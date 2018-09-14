@@ -1,0 +1,9 @@
+A call to v.push(i) may or may not allocate depending on the algorithm used by
+vec. If it's table doubling, the allocations would only happen every power of
+two. Anyway, if push(i) needed more memory, it would call alloc with a layout of
+twice the size, copy over the lower half, and then insert the element into the
+next available slot. As far as the actual stack trace:
+
+push
+RawVec::double
+(Bump)Allocator::alloc
