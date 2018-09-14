@@ -1,6 +1,7 @@
-Since we don't provide libc malloc with the type of the object that we are
-allocating for, it must try to make the object aligned for it's size, whatever
-that may be. On 64-bit architectures, there are long doubles, which can be 128
-bits (16-bytes) on some systems. Since in many cases that is the largest
-primitive type (excluding SIMD), this is the alignment that malloc chooses to
-use to cover all of the possibilities.
+The reason libc aligns on 16-byte boundaries are non-obvious without being
+familiar with the implementation of malloc. The reason for these alignments is
+because on 32 and 64-bit systems, this alignment holds two usize integers. This
+allows for the instrusive linked-list pointer to the next list element, and a
+size. Since those two bits of information are essential for bookkeeping, that's
+the minimum size/alignment that malloc returns, otherwise it couldn't fit the
+information free blocks.
