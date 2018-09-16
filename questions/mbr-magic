@@ -1,0 +1,2 @@
+To find out if a there is a valid MBR, just read bytes at offset 510, 511 and
+see if they match 0x55, 0xAA.
