@@ -1,0 +1,29 @@
+Find the correct partition:
+- find the FAT partition by looking in the MBR for something of partition type 0b or 0c
+
+- check byte 510, 11 for 0xAA55
+
+Take the following information from BPB:
+- bytes per sector (offset 11, size 2)
+- sectors per cluster( offset 13, size 1)
+- cluster size = bytes per sector * sectors per cluster
+- reserved sectors (BPB and EPBP included)
+- number of FATs
+
+From EBPB:
+- sectors per FAT
+- cluster number of root directory
+
+Now for start of clusters:
+in sectors:
+- partition offset + 1 sector (EPBP) + # reserved sectors + (# FATS * sectors/FAT)
+
+root dir cluster start:
+- cluster start + (cluster size * (root # - 2))
+
+- read through directory entries looking for a.
+- compute cluster offset of a
+- read through a
+- compute cluster offset of b
+- read through b
+- compute cluster offset of c
