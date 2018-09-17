@@ -6,6 +6,8 @@ compile_error!("only little endian platforms supported");
 
 mod mbr;
 #[cfg(test)]
+mod more_tests;
+#[cfg(test)]
 mod tests;
 mod util;
 
