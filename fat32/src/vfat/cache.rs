@@ -1,25 +1,25 @@
-use std::{io, fmt};
 use std::collections::HashMap;
+use std::{fmt, io};
 
 use traits::BlockDevice;
 
 #[derive(Debug)]
 struct CacheEntry {
     data: Vec<u8>,
-    dirty: bool
+    dirty: bool,
 }
 
 pub struct Partition {
     /// The physical sector where the partition begins.
     pub start: u64,
     /// The size, in bytes, of a logical sector in the partition.
-    pub sector_size: u64
+    pub sector_size: u64,
 }
 
 pub struct CachedDevice {
     device: Box<BlockDevice>,
     cache: HashMap<u64, CacheEntry>,
-    partition: Partition
+    partition: Partition,
 }
 
 impl CachedDevice {
@@ -43,14 +43,15 @@ impl CachedDevice {
     ///
     /// Panics if the partition's sector size is < the device's sector size.
     pub fn new<T>(device: T, partition: Partition) -> CachedDevice
-        where T: BlockDevice + 'static
+    where
+        T: BlockDevice + 'static,
     {
         assert!(partition.sector_size >= device.sector_size());
 
         CachedDevice {
             device: Box::new(device),
             cache: HashMap::new(),
-            partition: partition
+            partition: partition,
         }
     }
 

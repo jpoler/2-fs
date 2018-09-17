@@ -1,4 +1,4 @@
-use std::mem::{size_of, align_of, forget};
+use std::mem::{align_of, forget, size_of};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 pub trait VecExt {

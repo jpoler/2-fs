@@ -1,13 +1,13 @@
-use std::io;
-use std::path::Path;
-use std::mem::size_of;
 use std::cmp::min;
+use std::io;
+use std::mem::size_of;
+use std::path::Path;
 
-use util::SliceExt;
 use mbr::MasterBootRecord;
-use vfat::{Shared, Cluster, File, Dir, Entry, FatEntry, Error, Status};
+use traits::{BlockDevice, FileSystem};
+use util::SliceExt;
 use vfat::{BiosParameterBlock, CachedDevice, Partition};
-use traits::{FileSystem, BlockDevice};
+use vfat::{Cluster, Dir, Entry, Error, FatEntry, File, Shared, Status};
 
 #[derive(Debug)]
 pub struct VFat {
@@ -22,7 +22,8 @@ pub struct VFat {
 
 impl VFat {
     pub fn from<T>(mut device: T) -> Result<Shared<VFat>, Error>
-        where T: BlockDevice + 'static
+    where
+        T: BlockDevice + 'static,
     {
         unimplemented!("VFat::from()")
     }
@@ -67,13 +68,16 @@ impl<'a> FileSystem for &'a Shared<VFat> {
     }
 
     fn create_dir<P>(self, _path: P, _parents: bool) -> io::Result<Self::Dir>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         unimplemented!("read only file system")
     }
 
     fn rename<P, Q>(self, _from: P, _to: Q) -> io::Result<()>
-        where P: AsRef<Path>, Q: AsRef<Path>
+    where
+        P: AsRef<Path>,
+        Q: AsRef<Path>,
     {
         unimplemented!("read only file system")
     }

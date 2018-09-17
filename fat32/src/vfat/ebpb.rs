@@ -15,10 +15,8 @@ impl BiosParameterBlock {
     /// # Errors
     ///
     /// If the EBPB signature is invalid, returns an error of `BadSignature`.
-    pub fn from<T: BlockDevice>(
-        mut device: T,
-        sector: u64
-    ) -> Result<BiosParameterBlock, Error> {
+    pub fn from<T: BlockDevice>(mut device: T, sector: u64) -> Result<BiosParameterBlock, Error> {
+        // should probably make a type assertion about T
         unimplemented!("BiosParameterBlock::from()")
     }
 }

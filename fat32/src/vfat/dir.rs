@@ -1,12 +1,12 @@
-use std::ffi::OsStr;
-use std::char::decode_utf16;
 use std::borrow::Cow;
+use std::char::decode_utf16;
+use std::ffi::OsStr;
 use std::io;
 
 use traits;
 use util::VecExt;
-use vfat::{VFat, Shared, File, Cluster, Entry};
-use vfat::{Metadata, Attributes, Timestamp, Time, Date};
+use vfat::{Attributes, Date, Metadata, Time, Timestamp};
+use vfat::{Cluster, Entry, File, Shared, VFat};
 
 #[derive(Debug)]
 pub struct Dir {

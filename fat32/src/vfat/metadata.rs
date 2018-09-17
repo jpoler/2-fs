@@ -21,7 +21,7 @@ pub struct Attributes(u8);
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Timestamp {
     pub date: Date,
-    pub time: Time
+    pub time: Time,
 }
 
 /// Metadata for a directory entry.

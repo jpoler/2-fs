@@ -10,9 +10,9 @@ pub struct Shared<T>(imp::Inner<T>);
 
 #[cfg(target_os = "ros")]
 mod imp {
+    use super::Shared;
     use std::rc::Rc;
     use std::sync::Mutex;
-    use super::Shared;
 
     pub type Inner<T> = Rc<Mutex<T>>;
 

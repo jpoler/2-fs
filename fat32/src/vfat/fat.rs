@@ -16,7 +16,7 @@ pub enum Status {
     Bad,
     /// The FAT entry corresponds to a valid data cluster. The corresponding
     /// cluster is the last in its chain.
-    Eoc(u32)
+    Eoc(u32),
 }
 
 #[repr(C, packed)]
