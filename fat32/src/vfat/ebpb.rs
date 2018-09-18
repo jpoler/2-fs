@@ -5,6 +5,18 @@ use traits::BlockDevice;
 use vfat::Error;
 
 #[repr(C, packed)]
+pub struct BootCode {
+    inner: [u8; 420],
+}
+
+impl Default for BootCode {
+    fn default() -> Self {
+        BootCode { inner: [0; 420] }
+    }
+}
+
+#[repr(C, packed)]
+#[derive(Default)]
 pub struct BiosParameterBlock {
     pub _asm: [u8; 3],
     pub oem_id: [u8; 8],
@@ -34,17 +46,30 @@ pub struct BiosParameterBlock {
     pub _volume_id: u32,
     pub volume_label: [u8; 11],
     pub system_id: [u8; 8],
-    pub boot_code: [u8; 420],
+    pub boot_code: BootCode,
     pub partition_signature: [u8; 2],
 }
 
+// impl Default for BiosParameterBlock {
+//     fn default() -> Self {
+//         BiosParameterBlock {
+//             boot_code: [0; 420],
+//             ..Default::default()
+//         }
+//     }
+// }
+
 impl BiosParameterBlock {
     fn check_signature(&self) -> Result<(), Error> {
-        if self.partition_signature[0] != 0xAA || self.partition_signature[1] != 0x55 {
+        if self.partition_signature[0] != 0x55 || self.partition_signature[1] != 0xAA {
             Err(Error::BadSignature)
         } else {
             Ok(())
         }
+    }
+
+    pub fn relative_data_start(&self) -> u64 {
+        1 as u64 + self.reserved_sectors as u64 + self.fats as u64 * self.sectors_per_fat as u64
     }
 
     /// Reads the FAT32 extended BIOS parameter block from sector `sector` of

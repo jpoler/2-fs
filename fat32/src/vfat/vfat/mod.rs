@@ -1,9 +1,12 @@
+#[cfg(test)]
+mod tests;
+
 use std::cmp::min;
 use std::io;
 use std::mem::size_of;
 use std::path::Path;
 
-use mbr::MasterBootRecord;
+use mbr::{BootIndicator, MasterBootRecord, PartitionEntry, PartitionType};
 use traits::{BlockDevice, FileSystem};
 use util::SliceExt;
 use vfat::{BiosParameterBlock, CachedDevice, Partition};
@@ -25,7 +28,40 @@ impl VFat {
     where
         T: BlockDevice + 'static,
     {
-        unimplemented!("VFat::from()")
+        let mbr = MasterBootRecord::from(&mut device)?;
+        let partition = mbr
+            .table
+            .iter()
+            .find(
+                |partition| match (partition.boot_indicator, partition.partition_type) {
+                    (BootIndicator::Active, PartitionType::Fat32Chs) => true,
+                    (BootIndicator::Active, PartitionType::Fat32Lba) => true,
+                    _ => false,
+                },
+            ).ok_or(Error::NoBootableFatPartition)?;
+        let ebpb = BiosParameterBlock::from(&mut device, partition.relative_sector as u64)?;
+
+        let vfat = VFat::from_inner(device, partition, &ebpb);
+        Ok(Shared::new(vfat))
+    }
+
+    fn from_inner<T>(device: T, partition: &PartitionEntry, ebpb: &BiosParameterBlock) -> VFat
+    where
+        T: BlockDevice + 'static,
+    {
+        let cache_partition = Partition {
+            start: partition.relative_sector as u64,
+            sector_size: ebpb.bytes_per_sector as u64,
+        };
+        VFat {
+            device: CachedDevice::new(device, cache_partition),
+            bytes_per_sector: ebpb.bytes_per_sector,
+            sectors_per_cluster: ebpb.sectors_per_cluster,
+            sectors_per_fat: ebpb.sectors_per_fat,
+            fat_start_sector: partition.relative_sector as u64,
+            data_start_sector: partition.relative_sector as u64 + ebpb.relative_data_start(),
+            root_dir_cluster: Cluster::from(ebpb.root_cluster),
+        }
     }
 
     // TODO: The following methods may be useful here:
