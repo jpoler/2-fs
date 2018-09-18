@@ -11,6 +11,12 @@ pub enum BootIndicator {
     Unknown,
 }
 
+impl Default for BootIndicator {
+    fn default() -> Self {
+        BootIndicator::No
+    }
+}
+
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PartitionType {
@@ -19,8 +25,14 @@ pub enum PartitionType {
     Unsupported,
 }
 
+impl Default for PartitionType {
+    fn default() -> Self {
+        PartitionType::Unsupported
+    }
+}
+
 #[repr(C, packed)]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub struct CHS {
     // we don't care about the format, so bothering with bitfields isn't worth
     // it
@@ -28,7 +40,7 @@ pub struct CHS {
 }
 
 #[repr(C, packed)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct PartitionEntry {
     pub boot_indicator: BootIndicator,
     pub _start_chs: CHS,
