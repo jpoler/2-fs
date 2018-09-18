@@ -52,7 +52,7 @@ mod ebpb {
             #[test]
             fn $name() {
                 let mut buf: [u8; 512] = [0; 512];
-                buf[510..512].copy_from_slice(&[0xAA, 0x55]);
+                buf[510..512].copy_from_slice(&[0x55, 0xAA]);
                 let $name: [u8; $size] = $input;
                 buf[$offset..($offset + $size)].copy_from_slice(&($name));
 
