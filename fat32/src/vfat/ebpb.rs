@@ -68,7 +68,11 @@ impl BiosParameterBlock {
         }
     }
 
-    pub fn relative_data_start(&self) -> u64 {
+    pub fn relative_fat_start_sector(&self) -> u64 {
+        1 as u64 + self.reserved_sectors as u64
+    }
+
+    pub fn relative_data_start_sector(&self) -> u64 {
         1 as u64 + self.reserved_sectors as u64 + self.fats as u64 * self.sectors_per_fat as u64
     }
 
