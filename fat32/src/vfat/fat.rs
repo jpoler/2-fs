@@ -20,12 +20,24 @@ pub enum Status {
 }
 
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 pub struct FatEntry(pub u32);
 
 impl FatEntry {
     /// Returns the `Status` of the FAT entry `self`.
     pub fn status(&self) -> Status {
-        unimplemented!("FatEntry::status()")
+        let cluster = Cluster::from(self.0);
+
+        match cluster.get() {
+            0x0 => Free,
+            0x1 => Reserved,
+            0x2...0x0FFFFFEF => Data(cluster),
+            0x0FFFFFF0...0x0FFFFFF6 => Reserved,
+            0x0FFFFFF7 => Bad,
+            // TODO what the fuck is n?
+            n @ 0x0FFFFFF8...0x0FFFFFFF => Eoc(n),
+            _ => unreachable!(),
+        }
     }
 }
 
