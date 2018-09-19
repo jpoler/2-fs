@@ -1,5 +1,6 @@
 use std::io;
 
+use super::cluster::Cluster;
 use mbr;
 
 #[derive(Debug)]
@@ -9,6 +10,7 @@ pub enum Error {
     BadSignature,
     NotFound,
     NoBootableFatPartition,
+    InvalidClusterChain { start: Cluster },
 }
 
 impl From<mbr::Error> for Error {
