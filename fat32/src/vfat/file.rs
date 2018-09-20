@@ -21,6 +21,14 @@ impl File {
             metadata,
         }
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
 }
 
 /// Trait implemented by files in the file system.

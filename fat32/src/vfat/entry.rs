@@ -8,10 +8,6 @@ pub enum Entry {
     Dir(Dir),
 }
 
-// TODO: Implement any useful helper methods on `Entry`.
-
-// FIXME: Implement `traits::Entry` for `Entry`.
-
 impl traits::Entry for Entry {
     type File = File;
     type Dir = Dir;
@@ -19,35 +15,53 @@ impl traits::Entry for Entry {
 
     /// The name of the file or directory corresponding to this entry.
     fn name(&self) -> &str {
-        unimplemented!()
+        match self {
+            &Entry::File(ref file) => file.name(),
+            &Entry::Dir(ref dir) => dir.name(),
+        }
     }
 
     /// The metadata associated with the entry.
     fn metadata(&self) -> &Self::Metadata {
-        unimplemented!()
+        match self {
+            &Entry::File(ref file) => file.metadata(),
+            &Entry::Dir(ref dir) => dir.metadata(),
+        }
     }
 
     /// If `self` is a file, returns `Some` of a reference to the file.
     /// Otherwise returns `None`.
     fn as_file(&self) -> Option<&Self::File> {
-        unimplemented!()
+        match self {
+            &Entry::File(ref file) => Some(file),
+            _ => None,
+        }
     }
 
     /// If `self` is a directory, returns `Some` of a reference to the
     /// directory. Otherwise returns `None`.
     fn as_dir(&self) -> Option<&Self::Dir> {
-        unimplemented!()
+        match self {
+            &Entry::Dir(ref dir) => Some(dir),
+            _ => None,
+        }
     }
 
     /// If `self` is a file, returns `Some` of the file. Otherwise returns
     /// `None`.
     fn into_file(self) -> Option<Self::File> {
-        unimplemented!()
+        match self {
+            Entry::File(file) => Some(file),
+            _ => None,
+        }
     }
 
     /// If `self` is a directory, returns `Some` of the directory. Otherwise
     /// returns `None`.
     fn into_dir(self) -> Option<Self::Dir> {
-        unimplemented!()
+        match self {
+            Entry::Dir(dir) => Some(dir),
+            _ => None,
+        }
     }
 }

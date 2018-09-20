@@ -26,6 +26,14 @@ impl Dir {
             metadata,
         }
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
 }
 
 #[repr(C, packed)]
