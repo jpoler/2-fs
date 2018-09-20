@@ -266,6 +266,7 @@ impl Iterator for DirIter {
             })?;
 
         let reg = reg.regular()?;
+
         let name = if self.current < reg_index {
             self.construct_lfn(self.current, reg_index)
         } else {
@@ -286,7 +287,6 @@ impl Iterator for DirIter {
 
         let metadata = reg.metadata();
         let start = reg.cluster();
-
         let vfat = self.vfat.clone();
 
         if metadata.attributes.directory() {
