@@ -2,6 +2,7 @@ use std::cmp::{max, min};
 use std::io::{self, SeekFrom};
 
 use traits;
+use util::align_down;
 use vfat::{Cluster, Metadata, Shared, VFat};
 
 #[derive(Debug)]
@@ -54,15 +55,18 @@ impl io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut vfat = self.vfat.borrow_mut();
         let cluster_size_bytes = vfat.cluster_size_bytes();
+        let cluster_pos = self.pos - align_down(self.pos, cluster_size_bytes);
         let read_start_relative = Cluster::from((self.pos / cluster_size_bytes) as u32);
 
         let mut inner_buf = vec![];
         let max = buf.len();
-        let n = vfat.read_chain(self.start + read_start_relative, &mut inner_buf, Some(max))?;
+        let mut n = vfat.read_chain(self.start + read_start_relative, &mut inner_buf, Some(max))?;
 
-        let n = min(n, max);
+        n = min(n, max);
+        n -= cluster_pos;
+        self.pos += n;
 
-        buf.copy_from_slice(&inner_buf[..n]);
+        buf.copy_from_slice(&inner_buf[cluster_pos..n]);
         Ok(n)
     }
 }
@@ -92,6 +96,17 @@ impl io::Seek for File {
     /// Seeking before the start of a file or beyond the end of the file results
     /// in an `InvalidInput` error.
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-        unimplemented!("File::seek()")
+        let pos = match pos {
+            SeekFrom::Start(pos) => pos as i64,
+            SeekFrom::End(pos) => self.size() as i64 + pos,
+            SeekFrom::Current(pos) => self.pos as i64 + pos,
+        };
+
+        if pos < 0 || pos >= self.size() as i64 {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+
+        self.pos = pos as usize;
+        Ok(self.pos as u64)
     }
 }

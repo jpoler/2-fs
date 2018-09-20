@@ -110,3 +110,11 @@ impl<T> SliceExt for [T] {
         from_raw_parts_mut(new_ptr, new_len)
     }
 }
+
+pub fn align_down(addr: usize, align: usize) -> usize {
+    if !align.is_power_of_two() {
+        panic!("aligment must be a power of two");
+    }
+
+    addr & !(align.saturating_sub(1))
+}
