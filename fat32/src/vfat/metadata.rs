@@ -198,6 +198,7 @@ pub struct Metadata {
     pub created: Timestamp,
     pub accessed: Timestamp,
     pub modified: Timestamp,
+    pub size: u64,
 }
 
 impl traits::Metadata for Metadata {

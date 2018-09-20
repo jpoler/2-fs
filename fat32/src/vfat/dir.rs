@@ -51,7 +51,7 @@ pub struct VFatRegularDirEntry {
     modified_time: u16,
     modified_date: u16,
     cluster_low: u16,
-    size: [u8; 4],
+    size: u32,
 }
 
 impl VFatRegularDirEntry {
@@ -80,16 +80,22 @@ impl VFatRegularDirEntry {
         Attributes::from_raw(self.attributes)
     }
 
+    fn size(&self) -> u64 {
+        self.size as u64
+    }
+
     fn metadata(&self) -> Metadata {
         let attributes = self.attributes();
         let created = self.created();
         let accessed = self.accessed();
         let modified = self.modified();
+        let size = self.size();
         Metadata {
             attributes,
             created,
             accessed,
             modified,
+            size,
         }
     }
 }
@@ -211,7 +217,7 @@ impl traits::Dir for Dir {
         let mut buf = vec![];
 
         let mut vfat = self.vfat.borrow_mut();
-        vfat.read_chain(self.start, &mut buf)?;
+        vfat.read_chain(self.start, &mut buf, None)?;
 
         let buf = unsafe { buf.cast::<VFatDirEntry>() };
 
@@ -276,6 +282,8 @@ impl DirIter {
     }
 }
 
+// TODO: just ensure that this won't read into garbage data past valid dir
+// entries.
 impl Iterator for DirIter {
     type Item = Entry;
 

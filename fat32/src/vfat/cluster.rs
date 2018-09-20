@@ -1,3 +1,4 @@
+use std::ops::Add;
 use vfat::*;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone, Hash)]
@@ -12,5 +13,13 @@ impl From<u32> for Cluster {
 impl Cluster {
     pub fn get(&self) -> u32 {
         self.0
+    }
+}
+
+impl Add for Cluster {
+    type Output = Cluster;
+
+    fn add(self, other: Cluster) -> Cluster {
+        Cluster::from(self.0 + other.0)
     }
 }

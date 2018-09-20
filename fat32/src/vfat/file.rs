@@ -10,6 +10,7 @@ pub struct File {
     start: Cluster,
     name: String,
     metadata: Metadata,
+    pos: usize,
 }
 
 impl File {
@@ -19,6 +20,7 @@ impl File {
             start,
             name,
             metadata,
+            pos: 0,
         }
     }
 
@@ -28,6 +30,10 @@ impl File {
 
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
+    }
+
+    fn size(&self) -> u64 {
+        self.metadata.size
     }
 }
 
@@ -40,13 +46,24 @@ impl traits::File for File {
 
     /// Returns the size of the file in bytes.
     fn size(&self) -> u64 {
-        unimplemented!()
+        self.size()
     }
 }
 
 impl io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        let mut vfat = self.vfat.borrow_mut();
+        let cluster_size_bytes = vfat.cluster_size_bytes();
+        let read_start_relative = Cluster::from((self.pos / cluster_size_bytes) as u32);
+
+        let mut inner_buf = vec![];
+        let max = buf.len();
+        let n = vfat.read_chain(self.start + read_start_relative, &mut inner_buf, Some(max))?;
+
+        let n = min(n, max);
+
+        buf.copy_from_slice(&inner_buf[..n]);
+        Ok(n)
     }
 }
 

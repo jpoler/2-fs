@@ -76,7 +76,7 @@ impl<'a> VFat {
         offset: usize,
         buf: &mut [u8],
     ) -> io::Result<usize> {
-        let cluster_size_bytes = (self.bytes_per_sector * self.sectors_per_cluster) as usize;
+        let cluster_size_bytes = self.cluster_size_bytes();
         assert!(buf.len() >= cluster_size_bytes);
         assert!(offset <= cluster_size_bytes);
         let cluster_sector = self.cluster_sector(&cluster);
@@ -97,7 +97,12 @@ impl<'a> VFat {
     //  * A method to read all of the clusters chained from a starting cluster
     //    into a vector.
     //
-    pub fn read_chain(&mut self, start: Cluster, mut buf: &mut Vec<u8>) -> io::Result<usize> {
+    pub fn read_chain(
+        &mut self,
+        start: Cluster,
+        mut buf: &mut Vec<u8>,
+        max: Option<usize>,
+    ) -> io::Result<usize> {
         let sectors_per_cluster = self.sectors_per_cluster;
 
         let entries =
@@ -105,6 +110,11 @@ impl<'a> VFat {
 
         let mut n = 0;
         for (cluster, entry) in entries {
+            match max {
+                Some(max) if n >= max => break,
+                _ => {}
+            }
+
             match entry.status() {
                 Status::Data(_) => {
                     let cluster_sector = self.cluster_sector(&cluster);
@@ -137,6 +147,10 @@ impl<'a> VFat {
         let buf = self.device.get(sector)?;
         let fat_entries = unsafe { buf.cast::<FatEntry>() };
         Ok(fat_entries[offset])
+    }
+
+    pub fn cluster_size_bytes(&self) -> usize {
+        (self.bytes_per_sector * self.sectors_per_cluster) as usize
     }
 
     fn cluster_sector(&self, cluster: &Cluster) -> u64 {
