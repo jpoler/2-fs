@@ -207,10 +207,6 @@ impl traits::Metadata for Metadata {
         self.attributes.read_only()
     }
 
-    fn directory(&self) -> bool {
-        self.attributes.directory()
-    }
-
     fn hidden(&self) -> bool {
         self.attributes.hidden()
     }

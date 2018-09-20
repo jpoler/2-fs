@@ -187,7 +187,14 @@ impl traits::Dir for Dir {
 
     /// Returns an interator over the entries in this directory.
     fn entries(&self) -> io::Result<Self::Iter> {
-        unimplemented!()
+        let mut buf = vec![];
+
+        let mut vfat = self.vfat.borrow_mut();
+        vfat.read_chain(self.start, &mut buf)?;
+
+        let buf = unsafe { buf.cast::<VFatDirEntry>() };
+
+        Ok(DirIter::new(self.vfat.clone(), buf))
     }
 }
 
