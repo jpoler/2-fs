@@ -4,7 +4,7 @@ use std::ffi::OsStr;
 use std::io;
 use std::str;
 
-use traits;
+use traits::{self, Dir as DirTrait, Entry as EntryTrait};
 use util::VecExt;
 use vfat::{Attributes, Date, Metadata, Time, Timestamp};
 use vfat::{Cluster, Entry, File, Shared, VFat};
@@ -182,7 +182,20 @@ impl Dir {
     /// If `name` contains invalid UTF-8 characters, an error of `InvalidInput`
     /// is returned.
     pub fn find<P: AsRef<OsStr>>(&self, name: P) -> io::Result<Entry> {
-        unimplemented!("Dir::find()")
+        let name = name.as_ref().to_str().ok_or(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "name is not valid utf-8",
+        ))?;
+
+        let entry = self
+            .entries()?
+            .find(|entry| entry.name().eq_ignore_ascii_case(name.as_ref()))
+            .ok_or(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("{}: not found", name),
+            ))?;
+
+        Ok(entry)
     }
 }
 
