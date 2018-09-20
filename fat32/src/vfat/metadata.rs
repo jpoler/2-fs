@@ -8,7 +8,7 @@ use traits::{self, Metadata as MetadataTrait, Timestamp as TimestampTrait};
 pub struct Date(u16);
 
 impl Date {
-    fn from_raw(raw: u16) -> Date {
+    pub fn from_raw(raw: u16) -> Date {
         Date(raw)
     }
 
@@ -59,7 +59,7 @@ impl fmt::Display for Date {
 pub struct Time(u16);
 
 impl Time {
-    fn from_raw(raw: u16) -> Time {
+    pub fn from_raw(raw: u16) -> Time {
         Time(raw)
     }
 
@@ -110,7 +110,7 @@ impl fmt::Display for Time {
 pub struct Attributes(u8);
 
 impl Attributes {
-    fn from_raw(raw: u8) -> Attributes {
+    pub fn from_raw(raw: u8) -> Attributes {
         Attributes(raw)
     }
 
@@ -130,7 +130,7 @@ impl Attributes {
         self.0 & 0x08 != 0
     }
 
-    fn directory(&self) -> bool {
+    pub fn directory(&self) -> bool {
         self.0 & 0x10 != 0
     }
 
@@ -138,7 +138,7 @@ impl Attributes {
         self.0 & 0x20 != 0
     }
 
-    fn lfn(&self) -> bool {
+    pub fn lfn(&self) -> bool {
         self.read_only() && self.hidden() && self.system() && self.volume_id()
     }
 }
@@ -148,6 +148,12 @@ impl Attributes {
 pub struct Timestamp {
     pub date: Date,
     pub time: Time,
+}
+
+impl Timestamp {
+    pub fn new(date: Date, time: Time) -> Timestamp {
+        Timestamp { date, time }
+    }
 }
 
 impl traits::Timestamp for Timestamp {
@@ -188,10 +194,10 @@ impl fmt::Display for Timestamp {
 /// Metadata for a directory entry.
 #[derive(Default, Debug, Clone)]
 pub struct Metadata {
-    attributes: Attributes,
-    created: Timestamp,
-    accessed: Timestamp,
-    modified: Timestamp,
+    pub attributes: Attributes,
+    pub created: Timestamp,
+    pub accessed: Timestamp,
+    pub modified: Timestamp,
 }
 
 impl traits::Metadata for Metadata {
@@ -199,6 +205,10 @@ impl traits::Metadata for Metadata {
 
     fn read_only(&self) -> bool {
         self.attributes.read_only()
+    }
+
+    fn directory(&self) -> bool {
+        self.attributes.directory()
     }
 
     fn hidden(&self) -> bool {
@@ -217,8 +227,6 @@ impl traits::Metadata for Metadata {
         self.modified
     }
 }
-
-// FIXME: Implement `fmt::Display` (to your liking) for `Metadata`.
 
 impl fmt::Display for Metadata {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
