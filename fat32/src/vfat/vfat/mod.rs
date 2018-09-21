@@ -192,21 +192,15 @@ impl<'a> Iterator for FatIter<'a> {
     type Item = io::Result<(Cluster, FatEntry)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(cluster) = self.current {
-            match self.vfat.fat_entry(cluster) {
-                Ok(entry) => {
-                    match entry.status() {
-                        Status::Data(next_cluster) => self.current = Some(next_cluster),
-                        _ => self.current = None,
-                    }
-                    Some(Ok((cluster, entry)))
-                }
-
-                Err(err) => Some(Err(err)),
+        let cluster = self.current?;
+        let result = self.vfat.fat_entry(cluster).map(|entry| {
+            match entry.status() {
+                Status::Data(next_cluster) => self.current = Some(next_cluster),
+                _ => self.current = None,
             }
-        } else {
-            None
-        }
+            (cluster, entry)
+        });
+        Some(result)
     }
 }
 
