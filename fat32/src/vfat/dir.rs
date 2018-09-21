@@ -18,7 +18,7 @@ pub struct Dir {
 }
 
 impl Dir {
-    fn new(vfat: Shared<VFat>, start: Cluster, name: String, metadata: Metadata) -> Dir {
+    pub fn new(vfat: Shared<VFat>, start: Cluster, name: String, metadata: Metadata) -> Dir {
         Dir {
             vfat,
             start,
@@ -34,10 +34,37 @@ impl Dir {
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
     }
+
+    /// Finds the entry named `name` in `self` and returns it. Comparison is
+    /// case-insensitive.
+    ///
+    /// # Errors
+    ///
+    /// If no entry with name `name` exists in `self`, an error of `NotFound` is
+    /// returned.
+    ///
+    /// If `name` contains invalid UTF-8 characters, an error of `InvalidInput`
+    /// is returned.
+    pub fn find<P: AsRef<OsStr>>(&self, name: P) -> io::Result<Entry> {
+        let name = name.as_ref().to_str().ok_or(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "name is not valid utf-8",
+        ))?;
+
+        let entry = self
+            .entries()?
+            .find(|entry| entry.name().eq_ignore_ascii_case(name.as_ref()))
+            .ok_or(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("{}: not found", name),
+            ))?;
+
+        Ok(entry)
+    }
 }
 
 #[repr(C, packed)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct VFatRegularDirEntry {
     name: [u8; 8],
     extension: [u8; 3],
@@ -98,10 +125,33 @@ impl VFatRegularDirEntry {
             size,
         }
     }
+
+    fn name(&self) -> Option<String> {
+        let &name_stop = &self.name[..]
+            .iter()
+            .position(|&c| c == 0x00 || c == b' ')
+            .unwrap_or(self.name.len());
+        let &ext_stop = &self.extension[..]
+            .iter()
+            .position(|&c| c == 0x00 || c == b' ')
+            .unwrap_or(self.extension.len());
+        let name = str::from_utf8(&self.name[..name_stop]).ok()?;
+        let extension = str::from_utf8(&self.extension[..ext_stop]).ok()?;
+
+        if name == "" {
+            return None;
+        }
+
+        if extension != "" {
+            Some(format!("{}.{}", name, extension))
+        } else {
+            Some(format!("{}", name))
+        }
+    }
 }
 
 #[repr(C, packed)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct VFatLfnDirEntry {
     seqno: u8,
     name_1: [u16; 5],
@@ -146,13 +196,14 @@ impl<'a> From<&'a VFatDirEntry> for VFatEntry {
 
         unsafe {
             match (attributes.lfn(), dir_entry) {
-                (true, &VFatDirEntry { regular }) => regular.into(),
-                (false, &VFatDirEntry { long_filename }) => long_filename.into(),
+                (true, &VFatDirEntry { long_filename }) => long_filename.into(),
+                (false, &VFatDirEntry { regular }) => regular.into(),
             }
         }
     }
 }
 
+#[derive(Debug)]
 enum VFatEntry {
     Regular(VFatRegularDirEntry),
     Lfn(VFatLfnDirEntry),
@@ -176,35 +227,6 @@ impl VFatEntry {
     }
 }
 
-impl Dir {
-    /// Finds the entry named `name` in `self` and returns it. Comparison is
-    /// case-insensitive.
-    ///
-    /// # Errors
-    ///
-    /// If no entry with name `name` exists in `self`, an error of `NotFound` is
-    /// returned.
-    ///
-    /// If `name` contains invalid UTF-8 characters, an error of `InvalidInput`
-    /// is returned.
-    pub fn find<P: AsRef<OsStr>>(&self, name: P) -> io::Result<Entry> {
-        let name = name.as_ref().to_str().ok_or(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "name is not valid utf-8",
-        ))?;
-
-        let entry = self
-            .entries()?
-            .find(|entry| entry.name().eq_ignore_ascii_case(name.as_ref()))
-            .ok_or(io::Error::new(
-                io::ErrorKind::NotFound,
-                format!("{}: not found", name),
-            ))?;
-
-        Ok(entry)
-    }
-}
-
 impl traits::Dir for Dir {
     /// The type of entry stored in this directory.
     type Entry = Entry;
@@ -214,9 +236,9 @@ impl traits::Dir for Dir {
 
     /// Returns an interator over the entries in this directory.
     fn entries(&self) -> io::Result<Self::Iter> {
+        let mut vfat = self.vfat.borrow_mut();
         let mut buf = vec![];
 
-        let mut vfat = self.vfat.borrow_mut();
         vfat.read_chain(self.start, &mut buf, None)?;
 
         let buf = unsafe { buf.cast::<VFatDirEntry>() };
@@ -240,11 +262,21 @@ impl DirIter {
         }
     }
 
-    fn construct_lfn(&self, lfn_start: usize, lfn_stop: usize) -> Option<String> {
+    fn name_from_lfn(&self, lfn_start: usize, lfn_stop: usize) -> Option<String> {
         let mut entries: Vec<VFatEntry> = (&self.buf[lfn_start..lfn_stop])
             .iter()
+            .rev()
             .map(|entry| entry.into())
-            .collect();
+            .take_while(|entry| {
+                if let &VFatEntry::Lfn(_) = entry {
+                    true
+                } else {
+                    false
+                }
+            }).filter(|entry| match entry {
+                &VFatEntry::Lfn(ref lfn) if lfn.seqno != 0xe5 => true,
+                _ => false,
+            }).collect();
 
         entries.sort_by_key(|entry| match entry {
             &VFatEntry::Regular(_) => 0,
@@ -253,19 +285,26 @@ impl DirIter {
 
         let mut name: Vec<u16> = vec![];
         for (i, entry) in entries.iter().enumerate() {
+            println!("i: {}, entry: {:?}", i, entry);
             let lfn = if let &VFatEntry::Lfn(lfn) = entry {
                 lfn
             } else {
+                println!("not lfn");
                 return None;
             };
 
-            if lfn.seqno != i as u8 + 1 {
-                return None;
-            }
+            println!("seqno: {:x}", lfn.seqno);
+
+            // if lfn.seqno != i as u8 + 1 {
+            //     println!("wrong seqno i: {}, seqno: {}", i, lfn.seqno);
+            //     return None;
+            // }
             name.extend(lfn.name_1.iter());
             name.extend(lfn.name_2.iter());
             name.extend(lfn.name_3.iter());
         }
+
+        println!("name before: {:?}", name);
 
         let end = name
             .iter()
@@ -278,7 +317,11 @@ impl DirIter {
             .map(|c| c.unwrap_or(REPLACEMENT_CHARACTER))
             .collect::<String>();
 
-        Some(s)
+        if s == "" {
+            None
+        } else {
+            Some(s)
+        }
     }
 }
 
@@ -295,7 +338,7 @@ impl Iterator for DirIter {
         let &(reg_index, ref reg) = &self.buf[self.current..]
             .iter()
             .enumerate()
-            .map(|(i, union_entry)| (i, union_entry.into()))
+            .map(|(i, union_entry)| (self.current + i, union_entry.into()))
             .find(|&(_, ref entry)| match entry {
                 &VFatEntry::Regular(_) => true,
                 &VFatEntry::Lfn(_) => false,
@@ -303,20 +346,12 @@ impl Iterator for DirIter {
 
         let reg = reg.regular()?;
 
-        let name = if self.current < reg_index {
-            self.construct_lfn(self.current, reg_index)
-        } else {
-            let name = str::from_utf8(&reg.name).ok()?;
-            let extension = str::from_utf8(&reg.extension).ok()?;
-            if name == "" {
-                return None;
-            }
+        println!("index: {}, regular dir entry: {:?}", reg_index, reg);
 
-            if extension != "" {
-                Some(format!("{}.{}", name, extension))
-            } else {
-                Some(format!("{}", name))
-            }
+        let name = if self.current < reg_index {
+            self.name_from_lfn(self.current, reg_index)
+        } else {
+            reg.name()
         }?;
 
         self.current = reg_index + 1;

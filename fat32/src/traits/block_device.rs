@@ -4,8 +4,13 @@ use std::io;
 /// granularities.
 pub trait BlockDevice: Send {
     /// Sector size in bytes. Must be a multiple of 512 >= 512. Defaults to 512.
+    // TODO rename to physical
     fn sector_size(&self) -> u64 {
         512
+    }
+
+    fn logical_sector_size(&self) -> u64 {
+        self.sector_size()
     }
 
     /// Read sector number `n` into `buf`.
@@ -27,17 +32,21 @@ pub trait BlockDevice: Send {
     ///
     /// Returns an error if seeking or reading from `self` fails.
     fn read_all_sector(&mut self, n: u64, vec: &mut Vec<u8>) -> io::Result<usize> {
-        let sector_size = self.sector_size() as usize;
+        let sector_size = self.logical_sector_size() as usize;
+
+        println!("logical sector size: {}", sector_size);
 
         let start = vec.len();
         let available = vec.capacity() - start;
         if available < sector_size {
+            println!("reserving");
             vec.reserve(sector_size - available);
         }
 
         unsafe {
             vec.set_len(start + sector_size);
         }
+        println!("length: {}", vec.len());
         let read = self.read_sector(n, &mut vec[start..])?;
         unsafe {
             vec.set_len(start + read);

@@ -4,13 +4,13 @@ mod tests;
 use std::cmp::min;
 use std::io;
 use std::mem::size_of;
-use std::path::Path;
+use std::path::{Component, Path};
 
 use mbr::{BootIndicator, MasterBootRecord, PartitionEntry, PartitionType};
 use traits::{BlockDevice, FileSystem};
 use util::SliceExt;
+use vfat::{Attributes, Cluster, Dir, Entry, Error, FatEntry, File, Metadata, Shared, Status};
 use vfat::{BiosParameterBlock, CachedDevice, Partition};
-use vfat::{Cluster, Dir, Entry, Error, FatEntry, File, Shared, Status};
 
 #[derive(Debug)]
 pub struct VFat {
@@ -34,8 +34,8 @@ impl<'a> VFat {
             .iter()
             .find(
                 |partition| match (partition.boot_indicator, partition.partition_type) {
-                    (BootIndicator::Active, PartitionType::Fat32Chs) => true,
-                    (BootIndicator::Active, PartitionType::Fat32Lba) => true,
+                    (_, PartitionType::Fat32Chs) => true,
+                    (_, PartitionType::Fat32Lba) => true,
                     _ => false,
                 },
             ).ok_or(Error::NoBootableFatPartition)?;
@@ -54,7 +54,7 @@ impl<'a> VFat {
             sector_size: ebpb.bytes_per_sector as u64,
         };
         let vfat = VFat {
-            device: CachedDevice::new(device, cache_partition),
+            device: CachedDevice::new(device, cache_partition.clone()),
             bytes_per_sector: ebpb.bytes_per_sector as u64,
             sectors_per_cluster: ebpb.sectors_per_cluster as u64,
             sectors_per_fat: ebpb.sectors_per_fat as u64,
@@ -63,9 +63,18 @@ impl<'a> VFat {
             root_dir_cluster: Cluster::from(ebpb.root_cluster),
         };
 
+        println!("partition: {:#?}", partition);
+        println!("ebpb: {:#?}", ebpb);
+        println!("cache_partition: {:#?}", cache_partition);
+        println!("vfat: {:#?}", vfat);
+
         assert!(vfat.bytes_per_sector % (size_of::<FatEntry>() as u64) == 0);
 
         vfat
+    }
+
+    pub fn bytes_per_sector(&self) -> u64 {
+        self.bytes_per_sector
     }
 
     //  * A method to read from an offset of a cluster into a buffer.
@@ -110,13 +119,10 @@ impl<'a> VFat {
 
         let mut n = 0;
         for (cluster, entry) in entries {
-            match max {
-                Some(max) if n >= max => break,
-                _ => {}
-            }
-
-            match entry.status() {
-                Status::Data(_) => {
+            println!("cluster: {:?}", cluster);
+            let status = entry.status();
+            match status {
+                Status::Data(_) | Status::Eoc(_) => {
                     let cluster_sector = self.cluster_sector(&cluster);
                     for i in 0..sectors_per_cluster {
                         n += self
@@ -124,13 +130,18 @@ impl<'a> VFat {
                             .read_all_sector(cluster_sector + i as u64, &mut buf)?;
                     }
                 }
-                Status::Eoc(_) => break,
                 _ => {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         "invalid cluster chain",
                     ))
                 }
+            }
+
+            match (max, status) {
+                (Some(max), _) if n >= max => break,
+                (_, Status::Eoc(_)) => break,
+                _ => {}
             }
         }
 
@@ -141,10 +152,13 @@ impl<'a> VFat {
     //    reference points directly into a cached sector.
     //
     fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> {
+        let mut buf = vec![];
+
         let n = cluster.get();
         let sector = self.fat_entry_sector(n);
         let offset = self.fat_sector_offset(n);
-        let buf = self.device.get(sector)?;
+        println!("sector: {}, offset: {}", sector, offset);
+        self.device.read_all_sector(sector, &mut buf)?;
         let fat_entries = unsafe { buf.cast::<FatEntry>() };
         Ok(fat_entries[offset])
     }
@@ -154,6 +168,12 @@ impl<'a> VFat {
     }
 
     fn cluster_sector(&self, cluster: &Cluster) -> u64 {
+        println!(
+            "start_sector {}, sectors_per_cluster {}, cluster: {}",
+            self.data_start_sector,
+            self.sectors_per_cluster,
+            cluster.get()
+        );
         self.data_start_sector + self.sectors_per_cluster * (cluster.get() as u64 - 2)
     }
 
@@ -167,10 +187,6 @@ impl<'a> VFat {
 
     fn fats_per_sector(&self) -> u64 {
         self.bytes_per_sector / size_of::<FatEntry>() as u64
-    }
-
-    fn fat_size_bytes(&self) -> u64 {
-        self.bytes_per_sector * self.sectors_per_fat
     }
 }
 
@@ -195,9 +211,15 @@ impl<'a> Iterator for FatIter<'a> {
         let cluster = self.current?;
         let result = self.vfat.fat_entry(cluster).map(|entry| {
             match entry.status() {
-                Status::Data(next_cluster) => self.current = Some(next_cluster),
+                Status::Data(next_cluster) => {
+                    println!("next cluster: {:?}", next_cluster);
+
+                    self.current = Some(next_cluster);
+                }
+
                 _ => self.current = None,
             }
+            println!("cluster: {:?}, entry: {:x}", cluster, entry);
             (cluster, entry)
         });
         Some(result)
@@ -205,12 +227,49 @@ impl<'a> Iterator for FatIter<'a> {
 }
 
 impl<'a> FileSystem for &'a Shared<VFat> {
-    type File = ::traits::Dummy;
-    type Dir = ::traits::Dummy;
-    type Entry = ::traits::Dummy;
+    type File = File;
+    type Dir = Dir;
+    type Entry = Entry;
 
     fn open<P: AsRef<Path>>(self, path: P) -> io::Result<Self::Entry> {
-        unimplemented!("FileSystem::open()")
+        let mut components = path.as_ref().components();
+
+        let root_result = if let Some(Component::RootDir) = components.next() {
+            let start = { self.borrow().root_dir_cluster };
+            let metadata = Metadata {
+                attributes: Attributes::from_raw(0x10),
+                ..Default::default()
+            };
+            let dir = Dir::new(self.clone(), start, "root".to_string(), metadata);
+
+            Ok(Entry::Dir(dir))
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "path must be absolute",
+            ));
+        };
+
+        components.fold(root_result, |result, component| {
+            result.and_then(|entry| {
+                let name = if let Component::Normal(name) = component {
+                    name
+                } else {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "unsupported component type".to_string(),
+                    ));
+                };
+
+                match entry {
+                    Entry::File(_) => Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "path contains two file names",
+                    )),
+                    Entry::Dir(dir) => dir.find(name),
+                }
+            })
+        })
     }
 
     fn create_file<P: AsRef<Path>>(self, _path: P) -> io::Result<Self::File> {

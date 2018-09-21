@@ -50,15 +50,6 @@ pub struct BiosParameterBlock {
     pub partition_signature: [u8; 2],
 }
 
-// impl Default for BiosParameterBlock {
-//     fn default() -> Self {
-//         BiosParameterBlock {
-//             boot_code: [0; 420],
-//             ..Default::default()
-//         }
-//     }
-// }
-
 impl BiosParameterBlock {
     fn check_signature(&self) -> Result<(), Error> {
         if self.partition_signature[0] != 0x55 || self.partition_signature[1] != 0xAA {
@@ -69,11 +60,13 @@ impl BiosParameterBlock {
     }
 
     pub fn relative_fat_start_sector(&self) -> u64 {
-        1 as u64 + self.reserved_sectors as u64
+        // 1 as u64 + self.reserved_sectors as u64
+        self.reserved_sectors as u64
     }
 
     pub fn relative_data_start_sector(&self) -> u64 {
-        1 as u64 + self.reserved_sectors as u64 + self.fats as u64 * self.sectors_per_fat as u64
+        // 1 as u64 + self.reserved_sectors as u64 + self.fats as u64 * self.sectors_per_fat as u64
+        self.reserved_sectors as u64 + self.fats as u64 * self.sectors_per_fat as u64
     }
 
     /// Reads the FAT32 extended BIOS parameter block from sector `sector` of
@@ -97,6 +90,7 @@ impl fmt::Debug for BiosParameterBlock {
         f.debug_struct("BiosParameterBlock")
             .field("oem_id", &self.oem_id)
             .field("bytes_per_sector", &self.bytes_per_sector)
+            .field("sectors_per_cluster", &self.sectors_per_cluster)
             .field("reserved_sectors", &self.reserved_sectors)
             .field("fats", &self.fats)
             .field("max_dir_entries", &self.max_dir_entries)

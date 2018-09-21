@@ -41,6 +41,12 @@ impl FatEntry {
     }
 }
 
+impl fmt::LowerHex for FatEntry {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "value: {:x}", self.0)
+    }
+}
+
 impl fmt::Debug for FatEntry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("FatEntry")

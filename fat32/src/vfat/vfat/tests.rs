@@ -29,6 +29,6 @@ fn vfat() {
     assert_eq!(vfat.bytes_per_sector, 1024);
     assert_eq!(vfat.sectors_per_cluster, 2);
     assert_eq!(vfat.sectors_per_fat, 2);
-    assert_eq!(vfat.fat_start_sector, 5);
-    assert_eq!(vfat.data_start_sector, 9);
+    assert_eq!(vfat.fat_start_sector, 4);
+    assert_eq!(vfat.data_start_sector, 8);
 }

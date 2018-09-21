@@ -9,6 +9,7 @@ struct CacheEntry {
     dirty: bool,
 }
 
+#[derive(Debug, Clone)]
 pub struct Partition {
     /// The physical sector where the partition begins.
     pub start: u64,
@@ -112,8 +113,8 @@ impl CachedDevice {
                 Ok(&cache_entry.data[..sector_size])
             }
             Entry::Vacant(vacant) => {
-                let mut data = Vec::with_capacity(sector_size);
-                self.device.read_sector(sector, &mut data[..sector_size])?;
+                let mut data = vec![];
+                self.device.read_all_sector(sector, &mut data)?;
                 let cache_entry = vacant.insert(CacheEntry { data, dirty: false });
                 Ok(&cache_entry.data[..sector_size])
             }
@@ -122,6 +123,10 @@ impl CachedDevice {
 }
 
 impl BlockDevice for CachedDevice {
+    fn logical_sector_size(&self) -> u64 {
+        self.partition.sector_size
+    }
+
     fn read_sector(&mut self, n: u64, buf: &mut [u8]) -> io::Result<usize> {
         let (n, factor) = self.virtual_to_physical(n);
         let factor = factor as usize;
@@ -137,6 +142,7 @@ impl BlockDevice for CachedDevice {
             .enumerate()
         {
             let sector = self.get(n + i as u64)?;
+            println!("getting sector: {}", n + i as u64);
             chunk.copy_from_slice(&sector);
         }
 

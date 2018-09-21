@@ -41,9 +41,22 @@ macro resource($name:expr) {{
 }}
 
 macro assert_hash_eq($name:expr, $actual:expr, $expected:expr) {
+    use std::fs::File;
+    use std::io::Write;
+
     let (actual, expected) = ($actual, $expected);
     let (actual, expected) = (actual.trim(), expected.trim());
     if actual != expected {
+        let mut actual_file = File::create("/tmp/actual").expect("create failure");
+        let mut expected_file = File::create("/tmp/expected").expect("create failure");
+
+        actual_file
+            .write_all(actual.as_bytes())
+            .expect("write failure");
+        expected_file
+            .write_all(expected.as_bytes())
+            .expect("write failure");
+
         eprintln!("\nFile system hash failed for {}!\n", $name);
         eprintln!("--------------- EXPECTED ---------------");
         eprintln!("{}", expected);
@@ -179,6 +192,8 @@ fn hash_entry<T: Entry>(hash: &mut String, entry: &T) -> ::std::fmt::Result {
             ts.second()
         )
     }
+
+    println!("entry name: {}", entry.name());
 
     write_bool(hash, entry.is_dir(), 'd')?;
     write_bool(hash, entry.is_file(), 'f')?;

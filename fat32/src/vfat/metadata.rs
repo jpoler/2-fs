@@ -63,28 +63,12 @@ impl Time {
         Time(raw)
     }
 
-    fn from_hms(hour: u16, minute: u16, second: u16) -> Time {
-        Time(Time::to_hour(hour) | Time::to_minute(minute) | Time::to_second(second))
-    }
-
-    fn to_hour(hour: u16) -> u16 {
-        hour << 11
-    }
-
-    fn to_minute(minute: u16) -> u16 {
-        minute << 5
-    }
-
-    fn to_second(second: u16) -> u16 {
-        second >> 1
-    }
-
     fn hour(&self) -> u8 {
         (self.0 >> 11) as u8
     }
 
     fn minute(&self) -> u8 {
-        ((self.0 >> 5) as u8) & 0x1F
+        ((self.0 >> 5) as u8) & 0x3F
     }
 
     fn second(&self) -> u8 {
@@ -114,19 +98,19 @@ impl Attributes {
         Attributes(raw)
     }
 
-    fn read_only(&self) -> bool {
+    pub fn read_only(&self) -> bool {
         self.0 & 0x01 != 0
     }
 
-    fn hidden(&self) -> bool {
+    pub fn hidden(&self) -> bool {
         self.0 & 0x02 != 0
     }
 
-    fn system(&self) -> bool {
+    pub fn system(&self) -> bool {
         self.0 & 0x04 != 0
     }
 
-    fn volume_id(&self) -> bool {
+    pub fn volume_id(&self) -> bool {
         self.0 & 0x08 != 0
     }
 
@@ -134,7 +118,7 @@ impl Attributes {
         self.0 & 0x10 != 0
     }
 
-    fn archive(&self) -> bool {
+    pub fn archive(&self) -> bool {
         self.0 & 0x20 != 0
     }
 
@@ -192,6 +176,7 @@ impl fmt::Display for Timestamp {
 }
 
 /// Metadata for a directory entry.
+// TODO figure out why metadata is backwards
 #[derive(Default, Debug, Clone)]
 pub struct Metadata {
     pub attributes: Attributes,
