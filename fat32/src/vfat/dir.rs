@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
 use std::ffi::OsStr;
+use std::fmt;
 use std::io;
 use std::str;
 
@@ -64,7 +65,7 @@ impl Dir {
 }
 
 #[repr(C, packed)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct VFatRegularDirEntry {
     name: [u8; 8],
     extension: [u8; 3],
@@ -79,6 +80,21 @@ pub struct VFatRegularDirEntry {
     modified_date: u16,
     cluster_low: u16,
     size: u32,
+}
+
+impl fmt::Debug for VFatRegularDirEntry {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("VFatRegularDirEntry")
+            .field("name", &self.name())
+            .field("attributes", &self.attributes)
+            .field("created_time", &self.created_time)
+            .field("created_date", &self.created_date)
+            .field("accessed_date", &self.accessed_date)
+            .field("modified_time", &self.modified_time)
+            .field("modified_date", &self.modified_date)
+            .field("cluster", &self.cluster())
+            .finish()
+    }
 }
 
 impl VFatRegularDirEntry {
