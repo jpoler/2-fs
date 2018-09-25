@@ -120,6 +120,27 @@ impl CachedDevice {
             }
         }
     }
+
+    pub fn get_logical(
+        &mut self,
+        sector: u64,
+        logical_offset: usize,
+    ) -> io::Result<(usize, &[u8])> {
+        let (sector, factor) = self.virtual_to_physical(sector);
+        let factor = factor as usize;
+        let sector_size = self.device.sector_size() as usize;
+        let sector_offset = logical_offset / sector_size;
+        if sector_offset > factor {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid logical offset",
+            ));
+        }
+
+        let physical_offset = logical_offset % sector_size;
+        let sector = self.get(sector + sector_offset as u64)?;
+        Ok((physical_offset, sector))
+    }
 }
 
 impl BlockDevice for CachedDevice {

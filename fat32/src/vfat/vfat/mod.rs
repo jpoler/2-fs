@@ -2,6 +2,7 @@
 mod tests;
 
 use std::cmp::min;
+use std::fmt;
 use std::io;
 use std::mem::size_of;
 use std::path::{Component, Path};
@@ -12,7 +13,6 @@ use util::SliceExt;
 use vfat::{Attributes, Cluster, Dir, Entry, Error, FatEntry, File, Metadata, Shared, Status};
 use vfat::{BiosParameterBlock, CachedDevice, Partition};
 
-#[derive(Debug)]
 pub struct VFat {
     device: CachedDevice,
     bytes_per_sector: u64,
@@ -21,6 +21,18 @@ pub struct VFat {
     fat_start_sector: u64,
     data_start_sector: u64,
     root_dir_cluster: Cluster,
+}
+
+impl fmt::Debug for VFat {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("VFat")
+            .field("bytes_per_sector", &self.bytes_per_sector)
+            .field("sectors_per_fat", &self.sectors_per_fat)
+            .field("fat_start_sector", &self.fat_start_sector)
+            .field("data_start_sector", &self.data_start_sector)
+            .field("root_dir_cluster", &self.root_dir_cluster)
+            .finish()
+    }
 }
 
 impl<'a> VFat {
@@ -146,13 +158,14 @@ impl<'a> VFat {
     //    reference points directly into a cached sector.
     //
     fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> {
-        let mut buf = vec![];
-
         let n = cluster.get();
         let sector = self.fat_entry_sector(n);
         let offset = self.fat_sector_offset(n);
-        self.device.read_all_sector(sector, &mut buf)?;
-        let fat_entries = unsafe { buf.cast::<FatEntry>() };
+        let (offset, sector) = self
+            .device
+            .get_logical(sector, offset * size_of::<FatEntry>())?;
+        let offset = offset / size_of::<FatEntry>();
+        let fat_entries = unsafe { sector.cast::<FatEntry>() };
         Ok(fat_entries[offset])
     }
 
