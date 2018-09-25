@@ -130,10 +130,10 @@ impl<'a> VFat {
                             .read_all_sector(cluster_sector + i as u64, &mut buf)?;
                     }
                 }
-                _ => {
+                status => {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "invalid cluster chain",
+                        format!("invalid cluster chain: {:?}", status),
                     ))
                 }
             }

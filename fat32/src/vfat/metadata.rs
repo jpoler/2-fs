@@ -123,7 +123,7 @@ impl Attributes {
     }
 
     pub fn lfn(&self) -> bool {
-        self.read_only() && self.hidden() && self.system() && self.volume_id()
+        (self.0 & 0x0F) == 0x0F
     }
 }
 

@@ -98,6 +98,14 @@ impl fmt::Debug for VFatRegularDirEntry {
 }
 
 impl VFatRegularDirEntry {
+    fn sentinel(&self) -> bool {
+        self.name[0] == 0x00
+    }
+
+    fn deleted(&self) -> bool {
+        self.name[0] == 0x05 || self.name[0] == 0xE5
+    }
+
     fn cluster(&self) -> Cluster {
         Cluster::from(((self.cluster_high as u32) << 16) | (self.cluster_low as u32))
     }
@@ -177,6 +185,22 @@ pub struct VFatLfnDirEntry {
     name_2: [u16; 6],
     _reserved_2: [u8; 2],
     name_3: [u16; 2],
+}
+
+impl From<u8> for LfnSeqno {
+    fn from(seqno: u8) -> LfnSeqno {
+        match seqno {
+            0xE5 => LfnSeqno::Deleted,
+            seqno if (seqno & 0x40) != 0 => LfnSeqno::Final(seqno),
+            seqno => LfnSeqno::Active(seqno),
+        }
+    }
+}
+
+enum LfnSeqno {
+    Active(u8),
+    Final(u8),
+    Deleted,
 }
 
 #[repr(C, packed)]
@@ -279,36 +303,26 @@ impl DirIter {
     }
 
     fn name_from_lfn(&self, lfn_start: usize, lfn_stop: usize) -> Option<String> {
-        let mut entries: Vec<VFatEntry> = (&self.buf[lfn_start..lfn_stop])
+        let mut entries: Vec<VFatLfnDirEntry> = (&self.buf[lfn_start..lfn_stop])
             .iter()
             .rev()
             .map(|entry| entry.into())
+            // first ensure that we stop at the preceding regular in the array
             .take_while(|entry| {
                 if let &VFatEntry::Lfn(_) = entry {
                     true
                 } else {
                     false
                 }
-            }).filter(|entry| match entry {
-                &VFatEntry::Lfn(ref lfn) if lfn.seqno != 0xe5 => true,
-                _ => false,
+            }).filter_map(|entry| match entry.lfn() {
+                Some(lfn) if lfn.seqno != 0xE5 => Some(*lfn),
+                _ => None,
             }).collect();
 
-        entries.sort_by_key(|entry| match entry {
-            &VFatEntry::Regular(_) => 0,
-            &VFatEntry::Lfn(lfn) => lfn.seqno,
-        });
+        entries.sort_by_key(|lfn| lfn.seqno);
 
         let mut name: Vec<u16> = vec![];
-        for (i, entry) in entries.iter().enumerate() {
-            println!("i: {}, entry: {:?}", i, entry);
-            let lfn = if let &VFatEntry::Lfn(lfn) = entry {
-                lfn
-            } else {
-                println!("not lfn");
-                return None;
-            };
-
+        for &lfn in entries.iter() {
             println!("seqno: {:x}", lfn.seqno);
 
             // if lfn.seqno != i as u8 + 1 {
@@ -333,7 +347,7 @@ impl DirIter {
             .map(|c| c.unwrap_or(REPLACEMENT_CHARACTER))
             .collect::<String>();
 
-        if s == "" {
+        if s.is_empty() {
             None
         } else {
             Some(s)
@@ -351,35 +365,61 @@ impl Iterator for DirIter {
             return None;
         }
 
-        let &(reg_index, ref reg) = &self.buf[self.current..]
+        let &(regular_index, regular, ref name) = &self.buf[self.current..]
             .iter()
             .enumerate()
-            .map(|(i, union_entry)| (self.current + i, union_entry.into()))
-            .find(|&(_, ref entry)| match entry {
-                &VFatEntry::Regular(_) => true,
-                &VFatEntry::Lfn(_) => false,
+            .filter_map(|(i, union_entry)| {
+                let index = self.current + i;
+                let entry: VFatEntry = union_entry.into();
+                let regular = entry.regular()?;
+                if !regular.deleted() && !regular.sentinel() {
+                    Some((index, *regular))
+                } else {
+                    None
+                }
+            }).next()
+            .and_then(|(regular_index, regular)| {
+                println!(
+                    "self.current: {}, regular_index: {}",
+                    self.current, regular_index
+                );
+                let name = if self.current < regular_index {
+                    self.name_from_lfn(self.current, regular_index)
+                } else {
+                    None
+                }.or_else(|| regular.name())?;
+
+                Some((regular_index, regular, name))
             })?;
 
-        let reg = reg.regular()?;
+        println!(
+            "index: {}, regular dir entry: {:?}: lfn: {}",
+            regular_index,
+            regular,
+            regular.attributes().lfn()
+        );
 
-        println!("index: {}, regular dir entry: {:?}", reg_index, reg);
+        self.current = regular_index + 1;
 
-        let name = if self.current < reg_index {
-            self.name_from_lfn(self.current, reg_index)
-        } else {
-            reg.name()
-        }?;
-
-        self.current = reg_index + 1;
-
-        let metadata = reg.metadata();
-        let start = reg.cluster();
+        let metadata = regular.metadata();
+        let start = regular.cluster();
+        println!("start in DirIter::next(): {:?}", start);
         let vfat = self.vfat.clone();
 
         if metadata.attributes.directory() {
-            Some(Entry::Dir(Dir::new(vfat, start, name, metadata)))
+            Some(Entry::Dir(Dir::new(
+                vfat,
+                start,
+                name.to_string(),
+                metadata,
+            )))
         } else {
-            Some(Entry::File(File::new(vfat, start, name, metadata)))
+            Some(Entry::File(File::new(
+                vfat,
+                start,
+                name.to_string(),
+                metadata,
+            )))
         }
     }
 }

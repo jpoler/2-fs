@@ -53,20 +53,47 @@ impl traits::File for File {
 
 impl io::Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.pos == self.size() as usize {
+            return Ok(0);
+        }
+
         let mut vfat = self.vfat.borrow_mut();
         let cluster_size_bytes = vfat.cluster_size_bytes();
-        let cluster_pos = self.pos - align_down(self.pos, cluster_size_bytes);
+        let pos_within_cluster = self.pos - align_down(self.pos, cluster_size_bytes);
+        let file_end_relative = self.size() as usize - self.pos;
         let read_start_relative = Cluster::from((self.pos / cluster_size_bytes) as u32);
 
-        let mut inner_buf = vec![];
+        println!(
+            "start: {:?}, read_start_relative: {:?}, pos_within_cluster: {}, buf.len(): {}",
+            self.start,
+            read_start_relative,
+            pos_within_cluster,
+            buf.len()
+        );
+
         let max = buf.len();
+        let mut inner_buf = vec![];
         let mut n = vfat.read_chain(self.start + read_start_relative, &mut inner_buf, Some(max))?;
 
+        println!("n 1: {}", n);
+
+        n -= pos_within_cluster;
+        println!("n 2: {}", n);
         n = min(n, max);
-        n -= cluster_pos;
+        n = min(n, file_end_relative);
+        println!("n 3: {}", n);
         self.pos += n;
 
-        buf.copy_from_slice(&inner_buf[cluster_pos..n]);
+        println!(
+            "self.pos: {}, n: {}, pos_within_cluster: {}, buf.len(): {}, self.size(): {}",
+            self.pos,
+            n,
+            pos_within_cluster,
+            buf.len(),
+            self.size()
+        );
+
+        buf[..n].copy_from_slice(&inner_buf[pos_within_cluster..pos_within_cluster + n]);
         Ok(n)
     }
 }
