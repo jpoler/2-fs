@@ -1,0 +1,17 @@
+Rust and C++ both have the concept of namespaces, while C does not. C dumps all
+symbols and definitions into one file, blind to whether or not name collisions
+are occuring (at least during the preprocessor stage). Collisions are much more
+likely since programs tend to use common names like i, buf, file, etc. Rust's
+namespaces make the name unique within every namespace so that collisions will
+not occur. This mangling is actually "C++ style".
+
+Here is an example from nm -g on my fat32 executable test file:
+
+00000001000adfb0 T __ZN3std10sys_common11thread_info3set17ha363fc10a4c2c0bfE
+
+And a more complex example:
+
+__ZN280_$LT$std..error..$LT$impl$u20$core..convert..From$LT$alloc..string..String$GT$$u20$for$u20$alloc..boxed..Box$LT$std..error..Error$u20$$u2b$$u20$core..marker..Sync$u20$$u2b$$u20$core..marker..Send$u20$$u2b$$u20$$u27$static$GT$$GT$..from..StringError$u20$as$u20$core..fmt..Debug$GT$3fmt17hc05c7cec02534ee0E
+
+There are escape characters used for < and > which I presume comes from the use
+of generics. The names are also length-prefixed.
