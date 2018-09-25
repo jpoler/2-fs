@@ -1,0 +1,9 @@
+Rust can guarantee that all non-unsafe code is safe, subject to its own
+definition of safety. An ffi into C, for example cannot be guaranteed to be safe
+since C does not provide the same strong typing, and memory-safety guarantees
+through the ownership model. It is also unknown what memory management patterns
+a library call will use. Hopefully, the creators of that library chose a memory
+model wisely, but it isn't guaranteed by a formal contract. For example, an ffi
+call could span multiple threads, cause data races on returned pointers, and
+even deallocate that pointer without any warning. Rust has no way of
+introspecting this through language boundaries.
