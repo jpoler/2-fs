@@ -142,7 +142,6 @@ impl BlockDevice for CachedDevice {
             .enumerate()
         {
             let sector = self.get(n + i as u64)?;
-            println!("getting sector: {}", n + i as u64);
             chunk.copy_from_slice(&sector);
         }
 

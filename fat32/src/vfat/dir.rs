@@ -323,26 +323,16 @@ impl DirIter {
 
         let mut name: Vec<u16> = vec![];
         for &lfn in entries.iter() {
-            println!("seqno: {:x}", lfn.seqno);
-
-            // if lfn.seqno != i as u8 + 1 {
-            //     println!("wrong seqno i: {}, seqno: {}", i, lfn.seqno);
-            //     return None;
-            // }
             name.extend(lfn.name_1.iter());
             name.extend(lfn.name_2.iter());
             name.extend(lfn.name_3.iter());
         }
-
-        println!("name before: {:?}", name);
 
         let end = name
             .iter()
             .position(|&c| c == 0x0000u16)
             .unwrap_or(name.len());
 
-        // TODO: figure out whether FAT32 handles unpaired surrogates or should
-        // error. For the time being I'm just going to replace them.
         let s = decode_utf16((&name[..end]).iter().cloned())
             .map(|c| c.unwrap_or(REPLACEMENT_CHARACTER))
             .collect::<String>();
@@ -379,10 +369,6 @@ impl Iterator for DirIter {
                 }
             }).next()
             .and_then(|(regular_index, regular)| {
-                println!(
-                    "self.current: {}, regular_index: {}",
-                    self.current, regular_index
-                );
                 let name = if self.current < regular_index {
                     self.name_from_lfn(self.current, regular_index)
                 } else {
@@ -392,18 +378,10 @@ impl Iterator for DirIter {
                 Some((regular_index, regular, name))
             })?;
 
-        println!(
-            "index: {}, regular dir entry: {:?}: lfn: {}",
-            regular_index,
-            regular,
-            regular.attributes().lfn()
-        );
-
         self.current = regular_index + 1;
 
         let metadata = regular.metadata();
         let start = regular.cluster();
-        println!("start in DirIter::next(): {:?}", start);
         let vfat = self.vfat.clone();
 
         if metadata.attributes.directory() {

@@ -63,11 +63,6 @@ impl<'a> VFat {
             root_dir_cluster: Cluster::from(ebpb.root_cluster),
         };
 
-        println!("partition: {:#?}", partition);
-        println!("ebpb: {:#?}", ebpb);
-        println!("cache_partition: {:#?}", cache_partition);
-        println!("vfat: {:#?}", vfat);
-
         assert!(vfat.bytes_per_sector % (size_of::<FatEntry>() as u64) == 0);
 
         vfat
@@ -119,7 +114,6 @@ impl<'a> VFat {
 
         let mut n = 0;
         for (cluster, entry) in entries {
-            println!("cluster: {:?}", cluster);
             let status = entry.status();
             match status {
                 Status::Data(_) | Status::Eoc(_) => {
@@ -157,7 +151,6 @@ impl<'a> VFat {
         let n = cluster.get();
         let sector = self.fat_entry_sector(n);
         let offset = self.fat_sector_offset(n);
-        println!("sector: {}, offset: {}", sector, offset);
         self.device.read_all_sector(sector, &mut buf)?;
         let fat_entries = unsafe { buf.cast::<FatEntry>() };
         Ok(fat_entries[offset])
@@ -168,12 +161,6 @@ impl<'a> VFat {
     }
 
     fn cluster_sector(&self, cluster: &Cluster) -> u64 {
-        println!(
-            "start_sector {}, sectors_per_cluster {}, cluster: {}",
-            self.data_start_sector,
-            self.sectors_per_cluster,
-            cluster.get()
-        );
         self.data_start_sector + self.sectors_per_cluster * (cluster.get() as u64 - 2)
     }
 
@@ -212,14 +199,11 @@ impl<'a> Iterator for FatIter<'a> {
         let result = self.vfat.fat_entry(cluster).map(|entry| {
             match entry.status() {
                 Status::Data(next_cluster) => {
-                    println!("next cluster: {:?}", next_cluster);
-
                     self.current = Some(next_cluster);
                 }
 
                 _ => self.current = None,
             }
-            println!("cluster: {:?}, entry: {:x}", cluster, entry);
             (cluster, entry)
         });
         Some(result)

@@ -193,8 +193,6 @@ fn hash_entry<T: Entry>(hash: &mut String, entry: &T) -> ::std::fmt::Result {
         )
     }
 
-    println!("entry name: {}", entry.name());
-
     write_bool(hash, entry.is_dir(), 'd')?;
     write_bool(hash, entry.is_file(), 'f')?;
     write_bool(hash, entry.metadata().read_only(), 'r')?;

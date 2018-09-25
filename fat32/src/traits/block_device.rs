@@ -34,19 +34,15 @@ pub trait BlockDevice: Send {
     fn read_all_sector(&mut self, n: u64, vec: &mut Vec<u8>) -> io::Result<usize> {
         let sector_size = self.logical_sector_size() as usize;
 
-        println!("logical sector size: {}", sector_size);
-
         let start = vec.len();
         let available = vec.capacity() - start;
         if available < sector_size {
-            println!("reserving");
             vec.reserve(sector_size - available);
         }
 
         unsafe {
             vec.set_len(start + sector_size);
         }
-        println!("length: {}", vec.len());
         let read = self.read_sector(n, &mut vec[start..])?;
         unsafe {
             vec.set_len(start + read);

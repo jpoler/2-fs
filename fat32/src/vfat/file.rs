@@ -63,35 +63,14 @@ impl io::Read for File {
         let file_end_relative = self.size() as usize - self.pos;
         let read_start_relative = Cluster::from((self.pos / cluster_size_bytes) as u32);
 
-        println!(
-            "start: {:?}, read_start_relative: {:?}, pos_within_cluster: {}, buf.len(): {}",
-            self.start,
-            read_start_relative,
-            pos_within_cluster,
-            buf.len()
-        );
-
         let max = buf.len();
         let mut inner_buf = vec![];
         let mut n = vfat.read_chain(self.start + read_start_relative, &mut inner_buf, Some(max))?;
 
-        println!("n 1: {}", n);
-
         n -= pos_within_cluster;
-        println!("n 2: {}", n);
         n = min(n, max);
         n = min(n, file_end_relative);
-        println!("n 3: {}", n);
         self.pos += n;
-
-        println!(
-            "self.pos: {}, n: {}, pos_within_cluster: {}, buf.len(): {}, self.size(): {}",
-            self.pos,
-            n,
-            pos_within_cluster,
-            buf.len(),
-            self.size()
-        );
 
         buf[..n].copy_from_slice(&inner_buf[pos_within_cluster..pos_within_cluster + n]);
         Ok(n)
