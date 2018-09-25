@@ -1,6 +1,6 @@
 use std::fmt;
 
-use traits::{self, Metadata as MetadataTrait, Timestamp as TimestampTrait};
+use traits::{self, Metadata as MetadataTrait};
 
 /// A date as represented in FAT32 on-disk structures.
 #[repr(C, packed)]
@@ -10,22 +10,6 @@ pub struct Date(u16);
 impl Date {
     pub fn from_raw(raw: u16) -> Date {
         Date(raw)
-    }
-
-    fn from_ymd(year: u16, month: u16, day: u16) -> Date {
-        Date(Date::to_year(year) | Date::to_month(month) | Date::to_day(day))
-    }
-
-    fn to_year(year: u16) -> u16 {
-        (year - 1980) << 9
-    }
-
-    fn to_month(month: u16) -> u16 {
-        month << 5
-    }
-
-    fn to_day(day: u16) -> u16 {
-        day
     }
 
     fn year(&self) -> usize {

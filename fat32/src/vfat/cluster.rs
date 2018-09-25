@@ -1,5 +1,4 @@
 use std::ops::Add;
-use vfat::*;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone, Hash)]
 pub struct Cluster(u32);

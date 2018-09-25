@@ -1,4 +1,3 @@
-use std::cmp::{max, min};
 use std::io::{self, SeekFrom};
 
 use traits;
@@ -68,8 +67,7 @@ impl io::Read for File {
         let mut n = vfat.read_chain(self.start + read_start_relative, &mut inner_buf, Some(max))?;
 
         n -= pos_within_cluster;
-        n = min(n, max);
-        n = min(n, file_end_relative);
+        n = *vec![n, max, file_end_relative].iter().min().unwrap();
         self.pos += n;
 
         buf[..n].copy_from_slice(&inner_buf[pos_within_cluster..pos_within_cluster + n]);
@@ -78,7 +76,7 @@ impl io::Read for File {
 }
 
 impl io::Write for File {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
         unimplemented!("File::Write: read-only filesystem")
     }
 

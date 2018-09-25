@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
 use std::ffi::OsStr;
 use std::fmt;
@@ -187,22 +186,6 @@ pub struct VFatLfnDirEntry {
     name_3: [u16; 2],
 }
 
-impl From<u8> for LfnSeqno {
-    fn from(seqno: u8) -> LfnSeqno {
-        match seqno {
-            0xE5 => LfnSeqno::Deleted,
-            seqno if (seqno & 0x40) != 0 => LfnSeqno::Final(seqno),
-            seqno => LfnSeqno::Active(seqno),
-        }
-    }
-}
-
-enum LfnSeqno {
-    Active(u8),
-    Final(u8),
-    Deleted,
-}
-
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct VFatUnknownDirEntry {
@@ -345,8 +328,6 @@ impl DirIter {
     }
 }
 
-// TODO: just ensure that this won't read into garbage data past valid dir
-// entries.
 impl Iterator for DirIter {
     type Item = Entry;
 
@@ -355,7 +336,7 @@ impl Iterator for DirIter {
             return None;
         }
 
-        let &(regular_index, regular, ref name) = &self.buf[self.current..]
+        let (regular_index, regular, name) = (&self.buf)[self.current..]
             .iter()
             .enumerate()
             .filter_map(|(i, union_entry)| {
@@ -373,7 +354,8 @@ impl Iterator for DirIter {
                     self.name_from_lfn(self.current, regular_index)
                 } else {
                     None
-                }.or_else(|| regular.name())?;
+                };
+                let name = name.or_else(|| regular.name())?;
 
                 Some((regular_index, regular, name))
             })?;
@@ -385,19 +367,9 @@ impl Iterator for DirIter {
         let vfat = self.vfat.clone();
 
         if metadata.attributes.directory() {
-            Some(Entry::Dir(Dir::new(
-                vfat,
-                start,
-                name.to_string(),
-                metadata,
-            )))
+            Some(Entry::Dir(Dir::new(vfat, start, name, metadata)))
         } else {
-            Some(Entry::File(File::new(
-                vfat,
-                start,
-                name.to_string(),
-                metadata,
-            )))
+            Some(Entry::File(File::new(vfat, start, name, metadata)))
         }
     }
 }

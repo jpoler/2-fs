@@ -1,13 +1,12 @@
 #[cfg(test)]
 mod tests;
 
-use std::cmp::min;
 use std::fmt;
 use std::io;
 use std::mem::size_of;
 use std::path::{Component, Path};
 
-use mbr::{BootIndicator, MasterBootRecord, PartitionEntry, PartitionType};
+use mbr::{MasterBootRecord, PartitionEntry, PartitionType};
 use traits::{BlockDevice, FileSystem};
 use util::SliceExt;
 use vfat::{Attributes, Cluster, Dir, Entry, Error, FatEntry, File, Metadata, Shared, Status};
@@ -82,32 +81,6 @@ impl<'a> VFat {
 
     pub fn bytes_per_sector(&self) -> u64 {
         self.bytes_per_sector
-    }
-
-    //  * A method to read from an offset of a cluster into a buffer.
-    //
-    fn read_cluster(
-        &mut self,
-        cluster: Cluster,
-        offset: usize,
-        buf: &mut [u8],
-    ) -> io::Result<usize> {
-        let cluster_size_bytes = self.cluster_size_bytes();
-        assert!(buf.len() >= cluster_size_bytes);
-        assert!(offset <= cluster_size_bytes);
-        let cluster_sector = self.cluster_sector(&cluster);
-
-        let mut n = 0;
-        for (i, mut chunk) in buf[..cluster_size_bytes]
-            .chunks_mut(self.bytes_per_sector as usize)
-            .enumerate()
-        {
-            n += self
-                .device
-                .read_sector(cluster_sector + i as u64, &mut chunk)?;
-        }
-
-        Ok(n)
     }
 
     //  * A method to read all of the clusters chained from a starting cluster
