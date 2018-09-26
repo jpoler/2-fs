@@ -89,13 +89,15 @@ impl fmt::Debug for BiosParameterBlock {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("BiosParameterBlock")
             .field("oem_id", &self.oem_id)
-            .field("bytes_per_sector", &self.bytes_per_sector)
+            .field("bytes_per_sector", &(self.bytes_per_sector as u64))
             .field("sectors_per_cluster", &self.sectors_per_cluster)
             .field("reserved_sectors", &self.reserved_sectors)
             .field("fats", &self.fats)
-            .field("max_dir_entries", &self.max_dir_entries)
-            .field("logical_sectors_small", &self.logical_sectors_small)
-            .field("fat_id", &self.fat_id)
+            .field("max_dir_entries", &(self.max_dir_entries as u64))
+            .field(
+                "logical_sectors_small",
+                &(self.logical_sectors_small as u64),
+            ).field("fat_id", &self.fat_id)
             .field("hidden_sectors", &self.hidden_sectors)
             .field("logical_sectors_large", &self.logical_sectors_large)
             .field("sectors_per_fat", &self.sectors_per_fat)

@@ -40,7 +40,7 @@ pub struct CHS {
 }
 
 #[repr(C, packed)]
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Clone, PartialEq, Default)]
 pub struct PartitionEntry {
     pub boot_indicator: BootIndicator,
     pub _start_chs: CHS,
@@ -48,6 +48,17 @@ pub struct PartitionEntry {
     pub _end_chs: CHS,
     pub relative_sector: u32,
     pub sectors: u32,
+}
+
+impl fmt::Debug for PartitionEntry {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("PartitionEntry")
+            .field("boot_indicator", &self.boot_indicator)
+            .field("partition type", &self.partition_type)
+            .field("relative_sector", &(self.relative_sector as u64))
+            .field("sectors", &(self.sectors as u64))
+            .finish()
+    }
 }
 
 /// The master boot record (MBR).
