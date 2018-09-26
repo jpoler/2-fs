@@ -1,0 +1,3 @@
+The FileSystem struct in ::fs ensures that the Sd driver is thread safe so long
+as it is the sole client of the sd card driver (i.e. it is a singleton). This is
+because filesystem wraps it's inner value in a mutex.
